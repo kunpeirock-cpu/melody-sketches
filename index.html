@@ -1109,6 +1109,40 @@ playerSeek.addEventListener("change", () => {
   try { player.audio.currentTime = v; } catch (e) {}
   isScrubbing = false;
 });
+
+// タップ／クリック位置への即時ジャンプ（iOS Safari等のネイティブ非対応をカバー）
+playerSeek.addEventListener("pointerdown", (e) => {
+  const max = parseFloat(playerSeek.max) || 0;
+  if (max <= 0) return;
+  const rect = playerSeek.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const newVal = ratio * max;
+  playerSeek.value = newVal;
+  isScrubbing = true;
+  const dur = resolveDuration();
+  playerTime.textContent = `${fmtTime(newVal)} / ${fmtTime(dur)}`;
+  try { player.audio.currentTime = newVal; } catch (err) {}
+  try { playerSeek.setPointerCapture(e.pointerId); } catch (err) {}
+});
+playerSeek.addEventListener("pointermove", (e) => {
+  if (!isScrubbing) return;
+  if (e.buttons === 0 && e.pointerType === "mouse") return;
+  const max = parseFloat(playerSeek.max) || 0;
+  if (max <= 0) return;
+  const rect = playerSeek.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const newVal = ratio * max;
+  playerSeek.value = newVal;
+  const dur = resolveDuration();
+  playerTime.textContent = `${fmtTime(newVal)} / ${fmtTime(dur)}`;
+});
+playerSeek.addEventListener("pointerup", (e) => {
+  if (!isScrubbing) return;
+  const v = parseFloat(playerSeek.value) || 0;
+  try { player.audio.currentTime = v; } catch (err) {}
+  isScrubbing = false;
+  try { playerSeek.releasePointerCapture(e.pointerId); } catch (err) {}
+});
 player.audio.addEventListener("ended", () => {
   player.next();
 });
