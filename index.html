@@ -1091,11 +1091,34 @@ player.audio.addEventListener("durationchange", () => {
   if (d > 0) playerSeek.max = d;
 });
 
+// timeupdateは精度4Hz程度のため、再生中はrequestAnimationFrameで60fps同期
+let seekRafId = null;
+function seekRafLoop() {
+  if (!isScrubbing && !player.audio.paused && !player.audio.ended) {
+    const cur = player.audio.currentTime;
+    const dur = resolveDuration();
+    playerSeek.value = cur;
+    playerTime.textContent = `${fmtTime(cur)} / ${fmtTime(dur)}`;
+  }
+  seekRafId = requestAnimationFrame(seekRafLoop);
+}
+function startSeekRaf() {
+  if (seekRafId === null) seekRafId = requestAnimationFrame(seekRafLoop);
+}
+function stopSeekRaf() {
+  if (seekRafId !== null) { cancelAnimationFrame(seekRafId); seekRafId = null; }
+}
+player.audio.addEventListener("play", startSeekRaf);
+player.audio.addEventListener("pause", stopSeekRaf);
+player.audio.addEventListener("ended", stopSeekRaf);
+
+// 一時停止中・シーク時のフォールバック更新
 player.audio.addEventListener("timeupdate", () => {
+  if (isScrubbing) return;
   const cur = player.audio.currentTime;
   const dur = resolveDuration();
   playerTime.textContent = `${fmtTime(cur)} / ${fmtTime(dur)}`;
-  if (!isScrubbing) playerSeek.value = cur;
+  playerSeek.value = cur;
 });
 
 playerSeek.addEventListener("input", () => {
